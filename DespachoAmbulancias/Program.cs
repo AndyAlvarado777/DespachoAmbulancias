@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DespachoAmbulancias.Models;
+using DespachoAmbulancias.DataStructures;
 
 namespace DespachoAmbulancias;
 
@@ -12,24 +13,22 @@ namespace DespachoAmbulancias;
 /// </para>
 /// <para>
 /// Este módulo implementa la interfaz de usuario basada en consola mediante un bucle interactivo
-/// <c>do-while</c> y una bifurcación de control <c>switch-case</c>. Está diseñado de forma modular
-/// para integrarse limpiamente con:
+/// <c>do-while</c> y una bifurcación de control <c>switch-case</c>. Integra las estructuras de datos
+/// desarrolladas para la Fase 2:
 /// <list type="bullet">
-///   <item><description><b>Eduardo Henríquez:</b> <c>Data.InicializadorMapa</c></description></item>
-///   <item><description><b>Marvin González:</b> <c>DataStructures.GrafoVial</c> y <c>DataStructures.ColaTriaje</c></description></item>
-///   <item><description><b>Juan Carlos Monge:</b> <c>Algorithms.DijkstraEngine</c></description></item>
+///   <item><description><b>GrafoVial (G y G^T):</b> Representación urbana mediante listas de adyacencia (Marvin González &amp; Andy Alvarado).</description></item>
+///   <item><description><b>Modelos de Dominio:</b> Entidades POO con validación y tipado fuerte (Andy Alvarado).</description></item>
+///   <item><description><b>Cola de Prioridad:</b> Encolamiento clínico de triaje ordenado por gravedad y tiempo (FIFO en empates).</description></item>
 /// </list>
 /// </para>
 /// </summary>
 internal class Program
 {
     // =========================================================================
-    // COLECCIONES Y ESTRUCTURAS EN MEMORIA (Simulación y desacoplamiento)
+    // COLECCIONES Y ESTRUCTURAS EN MEMORIA
     // =========================================================================
-    // En Fase 2, estas estructuras se sustituyen directamente por las clases especializadas
-    // de Marvin (GrafoVial y ColaTriaje).
-    private static readonly List<NodoVial> _nodos = new();
-    private static readonly List<Tramo> _tramos = new();
+    // Red vial urbana representada como Grafo Dirigido Ponderado G = (V, E)
+    private static GrafoVial _mapaVial = new();
     private static readonly List<Ambulancia> _ambulancias = new();
     private static readonly List<Hospital> _hospitales = new();
 
@@ -124,9 +123,9 @@ internal class Program
         Console.WriteLine("╚═══════════════════════════════════════════════════════════════════════════╝");
         Console.ResetColor();
 
-        // Banner informativo del estado actual de la cola
+        // Banner informativo del estado actual
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($" [Emergencias en espera: {_colaEmergenciasPendientes.Count}] | [Ambulancias: {_ambulancias.Count}] | [Hospitales: {_hospitales.Count}]");
+        Console.WriteLine($" [Emergencias en espera: {_colaEmergenciasPendientes.Count}] | [Ambulancias: {_ambulancias.Count}] | [Hospitales: {_hospitales.Count}] | [Vértices V: {_mapaVial.CantidadNodos}]");
         Console.WriteLine("─────────────────────────────────────────────────────────────────────────────");
         Console.ResetColor();
     }
@@ -139,7 +138,7 @@ internal class Program
         Console.WriteLine("  [1] Registrar llamada de emergencia al 911");
         Console.WriteLine("  [2] Despachar siguiente emergencia (Dijkstra + Grafo Transpuesto)");
         Console.WriteLine("  [3] Consultar estado de ambulancias y hospitales");
-        Console.WriteLine("  [4] Visualizar estructura de la red vial (Grafo: Vértices y Aristas)");
+        Console.WriteLine("  [4] Visualizar estructura de la red vial (Grafo G y Grafo Transpuesto GT)");
         Console.WriteLine("  [5] Salir del sistema");
         Console.WriteLine("─────────────────────────────────────────────────────────────────────────────");
     }
@@ -160,7 +159,7 @@ internal class Program
         // 2. Ubicación en la red vial
         Console.WriteLine("\n Nodos viales disponibles en el mapa:");
         Console.ForegroundColor = ConsoleColor.DarkCyan;
-        foreach (var nodo in _nodos)
+        foreach (var nodo in _mapaVial.GetNodos().Values)
         {
             Console.WriteLine($"   • {nodo.Id} ({nodo.Nombre})");
         }
@@ -170,7 +169,7 @@ internal class Program
         while (true)
         {
             nodoUbicacionId = SolicitarCadenaNoVacia("\n ► Ingrese el ID del nodo del incidente: ").ToUpperInvariant();
-            if (_nodos.Exists(n => n.Id.Equals(nodoUbicacionId, StringComparison.OrdinalIgnoreCase)))
+            if (_mapaVial.ContieneNodo(nodoUbicacionId))
             {
                 break;
             }
@@ -235,7 +234,7 @@ internal class Program
 
         // 2. BÚSQUEDA DE AMBULANCIA DISPONIBLE:
         // En Fase 2 completa, se invocará:
-        // var resultadoAmb = DijkstraEngine.BuscarMasCercano(grafoTranspuesto, emergencia.UbicacionNodoId, ...);
+        // var resultadoAmb = DijkstraEngine.BuscarMasCercano(_mapaVial.ObtenerGrafoTranspuesto(), emergencia.UbicacionNodoId, ...);
         var ambulancia = _ambulancias.Find(a => a.HayDisponible());
 
         if (ambulancia == null)
@@ -252,7 +251,7 @@ internal class Program
 
         // 3. BÚSQUEDA DE HOSPITAL CON CAMAS DISPONIBLES:
         // En Fase 2 completa, se invocará:
-        // var resultadoHosp = DijkstraEngine.BuscarMasCercano(grafoOriginal, emergencia.UbicacionNodoId, ...);
+        // var resultadoHosp = DijkstraEngine.BuscarMasCercano(_mapaVial, emergencia.UbicacionNodoId, ...);
         var hospital = _hospitales.Find(h => h.TieneCamasDisponibles());
 
         if (hospital == null)
@@ -364,30 +363,42 @@ internal class Program
         MostrarSubencabezado("TOPOLOGÍA DE LA RED VIAL - GRAFO DIRIGIDO Y PONDERADO G = (V, E)");
 
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine(" ► VÉRTICES / NODOS DEL GRAFO (V):");
+        Console.WriteLine($" ► VÉRTICES / NODOS DEL GRAFO ({_mapaVial.CantidadNodos} vértices):");
         Console.ResetColor();
         Console.WriteLine(" ┌──────────────┬────────────────────────────────────────┬──────────────────────┐");
         Console.WriteLine(" │ ID Nodo      │ Nombre o Intersección                  │ Tipo                 │");
         Console.WriteLine(" ├──────────────┼────────────────────────────────────────┼──────────────────────┤");
-        foreach (var nodo in _nodos)
+        foreach (var nodo in _mapaVial.GetNodos().Values)
         {
             Console.WriteLine($" │ {nodo.Id,-12} │ {nodo.Nombre,-38} │ {nodo.Tipo,-20} │");
         }
         Console.WriteLine(" └──────────────┴────────────────────────────────────────┴──────────────────────┘");
 
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("\n ► ARISTAS / TRAMOS VIALES DIRIGIDOS (E) CON TIEMPO DE RECORRIDO:");
+        Console.WriteLine($"\n ► LISTA DE ADYACENCIA DEL GRAFO ORIGINAL G ({_mapaVial.CantidadTramos} tramos dirigidos):");
         Console.ResetColor();
         Console.WriteLine(" ┌──────────────────────┬──────────────────────┬───────────────────────────────┐");
         Console.WriteLine(" │ Origen               │ Destino              │ Peso (Tiempo en Minutos)      │");
         Console.WriteLine(" ├──────────────────────┼──────────────────────┼───────────────────────────────┤");
-        foreach (var tramo in _tramos)
+        foreach (var origenId in _mapaVial.GetNodos().Keys)
         {
-            Console.WriteLine($" │ {tramo.OrigenId,-20} │ {tramo.DestinoId,-20} │ {tramo.TiempoMinutos,25} min │");
+            var vecinos = _mapaVial.ObtenerVecinos(origenId);
+            foreach (var tramo in vecinos)
+            {
+                Console.WriteLine($" │ {tramo.OrigenId,-20} │ {tramo.DestinoId,-20} │ {tramo.TiempoMinutos,25} min │");
+            }
         }
         Console.WriteLine(" └──────────────────────┴──────────────────────┴───────────────────────────────┘");
+
+        // Demostración didáctica del Grafo Transpuesto G^T (Requisito clave de la Fase 1 y 2)
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        Console.WriteLine("\n ► DEMOSTRACIÓN: GRAFO TRANSPUESTO G^T (Sentido de aristas invertido):");
+        Console.ResetColor();
+        Console.WriteLine(" ⓘ Calculado en O(V + E) para permitir la búsqueda de ambulancias hacia el incidente:");
+        var grafoT = _mapaVial.ObtenerGrafoTranspuesto();
+        Console.WriteLine($"   Total aristas invertidas en G^T: {grafoT.CantidadTramos}");
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine(" ⓘ Nota teórica: Las calles de doble sentido se modelan como dos aristas dirigidas opuestas.");
+        Console.WriteLine("   Ejemplo de inversión: En G existe BASE-A1 ──> X1, en G^T existe X1 ──> BASE-A1.");
         Console.ResetColor();
     }
 
@@ -472,40 +483,11 @@ internal class Program
     // DATOS DE PRUEBA INICIALES (MOCK / SEED DATA)
     // =========================================================================
     // Representa el mapa urbano documentado en la Fase 1.
-    // Eduardo Henríquez reemplazará este método con InicializadorMapa.cs
+    // Eduardo Henríquez conectará aquí InicializadorMapa.cs
     private static void InicializarDatosSemilla()
     {
-        // Vértices del grafo urbano
-        _nodos.AddRange(new[]
-        {
-            new NodoVial("BASE-A1", "Base Cruz Roja San Salvador", TipoNodo.BaseAmbulancia),
-            new NodoVial("BASE-A2", "Base Comandos de Salvamento", TipoNodo.BaseAmbulancia),
-            new NodoVial("HOSP-01", "Hospital Nacional Rosales", TipoNodo.Hospital),
-            new NodoVial("HOSP-02", "Hospital Médico Quirúrgico ISSS", TipoNodo.Hospital),
-            new NodoVial("X1", "Alameda Roosevelt y 49 Av. Sur", TipoNodo.Interseccion),
-            new NodoVial("X2", "Bulevar Los Héroes y Calle Gabriela Mistral", TipoNodo.Interseccion),
-            new NodoVial("X3", "Paseo General Escalón y Fuentes Beethoven", TipoNodo.Interseccion),
-            new NodoVial("INC-01", "Monumento al Salvador del Mundo", TipoNodo.PuntoInteres)
-        });
-
-        // Aristas dirigidas y ponderadas (tiempos en minutos)
-        _tramos.AddRange(new[]
-        {
-            new Tramo("BASE-A1", "X1", 4),
-            new Tramo("X1", "BASE-A1", 4),
-            new Tramo("BASE-A2", "X3", 2),
-            new Tramo("X3", "BASE-A2", 2),
-            new Tramo("X1", "INC-01", 3),
-            new Tramo("INC-01", "X1", 3),
-            new Tramo("X1", "X2", 5),
-            new Tramo("X2", "X1", 5),
-            new Tramo("X2", "HOSP-01", 4),
-            new Tramo("HOSP-01", "X2", 4),
-            new Tramo("X3", "INC-01", 6),
-            new Tramo("INC-01", "X3", 6),
-            new Tramo("X3", "HOSP-02", 5),
-            new Tramo("HOSP-02", "X3", 5)
-        });
+        // Red vial urbana mediante GrafoVial (Clase de DataStructures)
+        _mapaVial = GrafoVial.CrearMapaEjemplo();
 
         // Flota de ambulancias inicial
         _ambulancias.AddRange(new[]
