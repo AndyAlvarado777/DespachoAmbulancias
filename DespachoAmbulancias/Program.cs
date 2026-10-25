@@ -5,34 +5,15 @@ using DespachoAmbulancias.DataStructures;
 
 namespace DespachoAmbulancias;
 
-/// <summary>
-/// Módulo Principal de Interacción y Consola.
-/// <para>
-/// <b>Responsable:</b> Andy Alvarado (Diseñador de Software e Interfaz).
-/// <b>Materia:</b> Programación con Estructuras de Datos - Universidad Don Bosco.
-/// </para>
-/// <para>
-/// Este módulo implementa la interfaz de usuario basada en consola mediante un bucle interactivo
-/// <c>do-while</c> y una bifurcación de control <c>switch-case</c>. Integra las estructuras de datos
-/// desarrolladas para la Fase 2:
-/// <list type="bullet">
-///   <item><description><b>GrafoVial (G y G^T):</b> Representación urbana mediante listas de adyacencia (Marvin González &amp; Andy Alvarado).</description></item>
-///   <item><description><b>Modelos de Dominio:</b> Entidades POO con validación y tipado fuerte (Andy Alvarado).</description></item>
-///   <item><description><b>Cola de Prioridad:</b> Encolamiento clínico de triaje ordenado por gravedad y tiempo (FIFO en empates).</description></item>
-/// </list>
-/// </para>
-/// </summary>
 internal class Program
 {
-    // =========================================================================
-    // COLECCIONES Y ESTRUCTURAS EN MEMORIA
-    // =========================================================================
+   
     // Red vial urbana representada como Grafo Dirigido Ponderado G = (V, E)
     private static GrafoVial _mapaVial = new();
     private static readonly List<Ambulancia> _ambulancias = new();
     private static readonly List<Hospital> _hospitales = new();
 
-    // Cola de prioridad: Implementa la lógica clínica de triaje (1=Rojo, 2=Amarillo, 3=Verde)
+    // Cola de prioridad: (1=Rojo, 2=Amarillo, 3=Verde)
     // Ordenada por IComparable<Emergencia> (Triaje asc, luego FechaHora asc).
     private static readonly List<Emergencia> _colaEmergenciasPendientes = new();
     private static int _contadorEmergencias = 2;
@@ -98,9 +79,7 @@ internal class Program
         } while (continuar);
     }
 
-    // =========================================================================
     // MÉTODOS DE RENDERIZADO DEL MENÚ
-    // =========================================================================
 
     private static void MostrarEncabezadoSistema()
     {
@@ -113,7 +92,6 @@ internal class Program
         }
         catch (Exception)
         {
-            // Ignorar excepción si se ejecuta en terminal redirigida o entorno no interactivo
         }
 
         Console.ForegroundColor = ConsoleColor.Cyan;
@@ -123,7 +101,7 @@ internal class Program
         Console.WriteLine("╚═══════════════════════════════════════════════════════════════════════════╝");
         Console.ResetColor();
 
-        // Banner informativo del estado actual
+        // Banner del estado actual
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine($" [Emergencias en espera: {_colaEmergenciasPendientes.Count}] | [Ambulancias: {_ambulancias.Count}] | [Hospitales: {_hospitales.Count}] | [Vértices V: {_mapaVial.CantidadNodos}]");
         Console.WriteLine("─────────────────────────────────────────────────────────────────────────────");
@@ -143,20 +121,14 @@ internal class Program
         Console.WriteLine("─────────────────────────────────────────────────────────────────────────────");
     }
 
-    // =========================================================================
-    // CASO DE USO 1: REGISTRAR LLAMADA DE EMERGENCIA AL 911
-    // =========================================================================
+    //Registrar emergencia 911
     private static void RegistrarLlamada911()
     {
         MostrarSubencabezado("MÓDULO DE RECEPCIÓN 911 - REGISTRO DE EMERGENCIA");
 
         Console.WriteLine(" Ingrese los datos clínicos y de ubicación del incidente:");
         Console.WriteLine();
-
-        // 1. Nombre del paciente / alertante
         string paciente = SolicitarCadenaNoVacia(" ► Nombre del paciente / reportante: ");
-
-        // 2. Ubicación en la red vial
         Console.WriteLine("\n Nodos viales disponibles en el mapa:");
         Console.ForegroundColor = ConsoleColor.DarkCyan;
         foreach (var nodo in _mapaVial.GetNodos().Values)
@@ -175,9 +147,7 @@ internal class Program
             }
             MostrarMensajeError($"El nodo '{nodoUbicacionId}' no existe en la red vial. Seleccione uno de la lista.");
         }
-
-        // 3. Selección y clasificación de Triaje clínico
-        Console.WriteLine("\n Clasificación de Triaje Médico:");
+        Console.WriteLine("\n Nivel de Emergencia Médica:");
         Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine("   [1] ROJO     - Emergencia crítica (Riesgo vital inmediato)");
         Console.ForegroundColor = ConsoleColor.Yellow;
@@ -189,17 +159,15 @@ internal class Program
         int triajeOpcion = SolicitarEnteroEnRango(" ► Seleccione el nivel de triaje [1 - 3]: ", 1, 3);
         NivelTriaje nivelTriaje = (NivelTriaje)triajeOpcion;
 
-        // Generación de Id y registro de entidad
+        // creación de Id y registro de entidad
         string idEmergencia = $"EMG-{_contadorEmergencias:D3}";
         _contadorEmergencias++;
 
         Emergencia nuevaEmergencia = new(idEmergencia, paciente, nivelTriaje, nodoUbicacionId, DateTime.Now);
 
-        // ENCOLAMIENTO CON PRIORIDAD:
-        // Se inserta en la lista y se mantiene ordenada según el criterio de IComparable<Emergencia>
-        // (Simula el comportamiento de inserción en O(log N) de la ColaTriaje de Marvin).
+        // Se inserta en la lista y se mantiene ordenada según el criterio de IComparable<Emergencia> (Ordena de 1 a 3)
         _colaEmergenciasPendientes.Add(nuevaEmergencia);
-        _colaEmergenciasPendientes.Sort(); // Ordena: 1° Triaje (Rojo > Amarillo > Verde), 2° FechaHora (FIFO)
+        _colaEmergenciasPendientes.Sort(); 
 
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("\n ✔ Emergencia registrada exitosamente en la Cola de Prioridad:");
@@ -208,9 +176,7 @@ internal class Program
         Console.WriteLine($"   Posición en cola: {_colaEmergenciasPendientes.IndexOf(nuevaEmergencia) + 1} de {_colaEmergenciasPendientes.Count}");
     }
 
-    // =========================================================================
-    // CASO DE USO 2: DESPACHAR SIGUIENTE EMERGENCIA
-    // =========================================================================
+    // DESPACHAR SIGUIENTE EMERGENCIA
     private static void DespacharSiguienteEmergencia()
     {
         MostrarSubencabezado("DESPACHO INTELIGENTE - ASIGNACIÓN ÓPTIMA CON DIJKSTRA");
@@ -232,9 +198,7 @@ internal class Program
         Console.WriteLine($" ► {emergencia}\n");
         Console.ResetColor();
 
-        // 2. BÚSQUEDA DE AMBULANCIA DISPONIBLE:
-        // En Fase 2 completa, se invocará:
-        // var resultadoAmb = DijkstraEngine.BuscarMasCercano(_mapaVial.ObtenerGrafoTranspuesto(), emergencia.UbicacionNodoId, ...);
+        //BÚSQUEDA DE AMBULANCIA DISPONIBLE:
         var ambulancia = _ambulancias.Find(a => a.HayDisponible());
 
         if (ambulancia == null)
@@ -249,9 +213,7 @@ internal class Program
             return;
         }
 
-        // 3. BÚSQUEDA DE HOSPITAL CON CAMAS DISPONIBLES:
-        // En Fase 2 completa, se invocará:
-        // var resultadoHosp = DijkstraEngine.BuscarMasCercano(_mapaVial, emergencia.UbicacionNodoId, ...);
+        // BUSCAR UN HOSPITAL CON CAMAS DISPONIBLES:
         var hospital = _hospitales.Find(h => h.TieneCamasDisponibles());
 
         if (hospital == null)
@@ -263,11 +225,11 @@ internal class Program
             return;
         }
 
-        // Simulación de cálculo de ruta y tiempos (integración con Juan Monge)
+        // Simulación de cálculo de ruta y tiempos
         ambulancia.TomarDisponible();
         hospital.OcuparCama();
 
-        // Creación del objeto de asignación (del diagrama UML Fase 1)
+        // Creación del objeto de asignación
         List<string> rutaIda = new() { ambulancia.UbicacionActualNodoId, "X1", emergencia.UbicacionNodoId };
         List<string> rutaHospital = new() { emergencia.UbicacionNodoId, "X2", hospital.UbicacionNodoId };
 
@@ -275,10 +237,10 @@ internal class Program
             emergencia: emergencia,
             ambulancia: ambulancia,
             rutaIda: rutaIda,
-            tiempoLlegada: 6,      // Minutos calculados por Dijkstra sobre GT
+            tiempoLlegada: 6,      
             hospital: hospital,
             rutaHospital: rutaHospital,
-            tiempoTraslado: 8     // Minutos calculados por Dijkstra sobre G
+            tiempoTraslado: 8     
         );
 
         despacho.ImprimirResumenDespacho();
@@ -295,9 +257,7 @@ internal class Program
         }
     }
 
-    // =========================================================================
-    // CASO DE USO 3: CONSULTAR ESTADO DE RECURSOS
-    // =========================================================================
+    // VER ESTADO DE RECURSOS
     private static void ConsultarEstadoRecursos()
     {
         MostrarSubencabezado("MONITOR DE RECURSOS: AMBULANCIAS, HOSPITALES Y COLA DE ESPERA");
@@ -355,9 +315,7 @@ internal class Program
         }
     }
 
-    // =========================================================================
-    // CASO DE USO 4: VISUALIZAR ESTRUCTURA DEL MAPA VIAL
-    // =========================================================================
+    // VER MAPA
     private static void VisualizarEstructuraMapaVial()
     {
         MostrarSubencabezado("TOPOLOGÍA DE LA RED VIAL - GRAFO DIRIGIDO Y PONDERADO G = (V, E)");
@@ -390,7 +348,7 @@ internal class Program
         }
         Console.WriteLine(" └──────────────────────┴──────────────────────┴───────────────────────────────┘");
 
-        // Demostración didáctica del Grafo Transpuesto G^T (Requisito clave de la Fase 1 y 2)
+        // Demostración didáctica del Grafo Transpuesto G^T 
         Console.ForegroundColor = ConsoleColor.Magenta;
         Console.WriteLine("\n ► DEMOSTRACIÓN: GRAFO TRANSPUESTO G^T (Sentido de aristas invertido):");
         Console.ResetColor();
@@ -402,10 +360,8 @@ internal class Program
         Console.ResetColor();
     }
 
-    // =========================================================================
-    // MÉTODOS AUXILIARES DE VALIDACIÓN DE ENTRADA Y FORMATO
-    // =========================================================================
-
+    // MÉTODOS DE VALIDACIÓN DE ENTRADA Y FORMATO
+    
     private static string SolicitarCadenaNoVacia(string prompt)
     {
         while (true)
@@ -465,7 +421,6 @@ internal class Program
         }
         catch (Exception)
         {
-            // Ignorar en entornos de ejecución con pipes o no interactivos
         }
     }
 
@@ -479,14 +434,11 @@ internal class Program
         Console.ResetColor();
     }
 
-    // =========================================================================
-    // DATOS DE PRUEBA INICIALES (MOCK / SEED DATA)
-    // =========================================================================
+    // DATOS DE PRUEBA INICIALES 
     // Representa el mapa urbano documentado en la Fase 1.
-    // Eduardo Henríquez conectará aquí InicializadorMapa.cs
     private static void InicializarDatosSemilla()
     {
-        // Red vial urbana mediante GrafoVial (Clase de DataStructures)
+        // Red vial urbana mediante GrafoVial 
         _mapaVial = GrafoVial.CrearMapaEjemplo();
 
         // Flota de ambulancias inicial

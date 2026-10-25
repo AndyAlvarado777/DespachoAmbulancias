@@ -4,40 +4,22 @@ using DespachoAmbulancias.Models;
 
 namespace DespachoAmbulancias.DataStructures;
 
-/// <summary>
-/// Representa la red vial urbana mediante un Grafo Dirigido y Ponderado \( G = (V, E) \).
-/// <para>
-/// <b>Justificación Teórica (Materia PED):</b>
-/// Implementado mediante <b>Listas de Adyacencia</b> sobre tablas hash (<c>Dictionary&lt;string, List&lt;Tramo&gt;&gt;</c>).
-/// Es la representación óptima para redes de transporte urbano (grafos dispersos), requiriendo un
-/// costo espacial de \( \mathcal{O}(V + E) \) frente a los \( \mathcal{O}(V^2) \) de una matriz de adyacencia.
-/// </para>
-/// <para>
-/// <b>Estructura a cargo de:</b> Marvin González (adaptada e integrada al modelo de dominio por Andy Alvarado).
-/// </para>
-/// </summary>
+
 public class GrafoVial
 {
     private readonly Dictionary<string, NodoVial> _nodos;
     private readonly Dictionary<string, List<Tramo>> _listaAdyacencia;
 
-    /// <summary>
-    /// Inicializa un grafo vial vacío con diccionarios de acceso \( \mathcal{O}(1) \).
-    /// </summary>
+  
     public GrafoVial()
     {
         _nodos = new Dictionary<string, NodoVial>(StringComparer.OrdinalIgnoreCase);
         _listaAdyacencia = new Dictionary<string, List<Tramo>>(StringComparer.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// Total de vértices o intersecciones registradas en la red vial (\( |V| \)).
-    /// </summary>
+  
     public int CantidadNodos => _nodos.Count;
 
-    /// <summary>
-    /// Total de aristas o tramos dirigidos registrados en la red vial (\( |E| \)).
-    /// </summary>
     public int CantidadTramos
     {
         get
@@ -51,11 +33,7 @@ public class GrafoVial
         }
     }
 
-    /// <summary>
-    /// Agrega un nuevo vértice al mapa vial si no existe previamente.
-    /// Complejidad: \( \mathcal{O}(1) \) promedio.
-    /// </summary>
-    /// <param name="nodo">Instancia del nodo vial a registrar.</param>
+  
     public void AgregarNodo(NodoVial nodo)
     {
         if (nodo == null) throw new ArgumentNullException(nameof(nodo));
@@ -67,13 +45,6 @@ public class GrafoVial
         }
     }
 
-    /// <summary>
-    /// Registra un tramo vial dirigido con su tiempo de viaje asociado.
-    /// Complejidad: \( \mathcal{O}(1) \) promedio.
-    /// </summary>
-    /// <param name="origenId">Id del nodo de partida.</param>
-    /// <param name="destinoId">Id del nodo de llegada.</param>
-    /// <param name="tiempoMinutos">Tiempo estimado de recorrido en minutos (peso \( w \ge 0 \)).</param>
     public void AgregarTramo(string origenId, string destinoId, int tiempoMinutos)
     {
         if (string.IsNullOrWhiteSpace(origenId)) throw new ArgumentException("Origen no válido.", nameof(origenId));
@@ -97,21 +68,14 @@ public class GrafoVial
         _listaAdyacencia[origenId].Add(nuevoTramo);
     }
 
-    /// <summary>
-    /// Registra una calle de doble sentido agregando dos aristas dirigidas opuestas.
-    /// </summary>
+  
     public void AgregarTramoDobleSentido(string nodoA, string nodoB, int tiempoMinutos)
     {
         AgregarTramo(nodoA, nodoB, tiempoMinutos);
         AgregarTramo(nodoB, nodoA, tiempoMinutos);
     }
 
-    /// <summary>
-    /// Obtiene las aristas o calles que salen directamente de un nodo.
-    /// Complejidad: \( \mathcal{O}(1) \) para acceder a la lista.
-    /// </summary>
-    /// <param name="idNodo">Identificador del nodo consultado.</param>
-    /// <returns>Lista de tramos adyacentes salientes.</returns>
+  
     public List<Tramo> ObtenerVecinos(string idNodo)
     {
         if (!string.IsNullOrWhiteSpace(idNodo) && _listaAdyacencia.TryGetValue(idNodo.Trim(), out var vecinos))
@@ -121,19 +85,13 @@ public class GrafoVial
         return new List<Tramo>();
     }
 
-    /// <summary>
-    /// Retorna la colección completa de nodos registrados.
-    /// </summary>
+  
     public Dictionary<string, NodoVial> GetNodos() => _nodos;
 
-    /// <summary>
-    /// Verifica si un nodo existe en el grafo.
-    /// </summary>
+    
     public bool ContieneNodo(string idNodo) => !string.IsNullOrWhiteSpace(idNodo) && _nodos.ContainsKey(idNodo.Trim());
 
-    /// <summary>
-    /// Obtiene un nodo por su identificador.
-    /// </summary>
+    
     public NodoVial? ObtenerNodo(string idNodo)
     {
         if (!string.IsNullOrWhiteSpace(idNodo) && _nodos.TryGetValue(idNodo.Trim(), out var nodo))
@@ -143,18 +101,7 @@ public class GrafoVial
         return null;
     }
 
-    /// <summary>
-    /// Construye y retorna el <b>Grafo Transpuesto (\( G^T \))</b>, invirtiendo la dirección
-    /// de todas las aristas dirigidas conservando los mismos pesos.
-    /// <para>
-    /// <b>Aplicación en el Despacho:</b>
-    /// Permite ejecutar el algoritmo de Dijkstra desde el lugar del incidente hacia atrás,
-    /// calculando en una sola ejecución el tiempo real que le tomaría a cada ambulancia
-    /// disponible llegar al paciente respetando el sentido de las vías.
-    /// </para>
-    /// Complejidad: \( \mathcal{O}(V + E) \) tiempo y espacio.
-    /// </summary>
-    /// <returns>Nueva instancia de <see cref="GrafoVial"/> con aristas invertidas.</returns>
+   
     public GrafoVial ObtenerGrafoTranspuesto()
     {
         GrafoVial grafoT = new();
@@ -177,9 +124,7 @@ public class GrafoVial
         return grafoT;
     }
 
-    /// <summary>
-    /// Genera la red vial inicial documentada en la Fase 1 del proyecto (San Salvador).
-    /// </summary>
+    
     public static GrafoVial CrearMapaEjemplo()
     {
         GrafoVial grafo = new();
